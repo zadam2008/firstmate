@@ -115,3 +115,4 @@ Resolving this would need either a `pi`-specific env marker inspectable from out
 
 None specific to tmux for the reference path itself - it is the fully verified reference backend, while Orca and cmux are the backends without secondmate support.
 The agent-liveness probe above has one known gap (`pi`'s generic `node` process name, see above).
+`droid` and `cursor` (verified as crew harnesses 2026-07-13) have no recorded live process-name entry yet, so the classifier never reports them `alive`, and `bin/fm-bootstrap.sh`'s secondmate-liveness sweep conservatively downgrades a `dead` reading for them to `unknown` instead of respawning.
