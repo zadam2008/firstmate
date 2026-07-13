@@ -87,6 +87,7 @@ The supported launch-profile flags below were verified locally on 2026-06-30 wit
 | pi | `--model <model>` | `--thinking <low\|medium\|high\|xhigh>` | Verified on pi 0.80.2. `max` prints an invalid-thinking warning, so firstmate omits Pi effort when the requested effort is `max`. |
 | opencode | `--model <provider/model>` | none for firstmate's interactive launch | Verified on opencode 1.17.6. `opencode run` has `--variant`, but firstmate launches the interactive `opencode --prompt` path, which has no verified effort flag. |
 | droid | none for interactive launch | none for interactive launch | Verified live on 2026-07-13: interactive `droid` ignores `-m`/`--model` for the launch policy firstmate needs. Firstmate pins Droid through a per-task `--settings` JSON instead, always `glm-5.2`, high reasoning, Auto High. |
+| cursor | `--model <model>` | none for firstmate's interactive launch | Verified from `cursor-agent --help` on Cursor Agent 2026.07.01-41b2de7. Cursor is fleet-pinned to Composer models only; firstmate defaults it to `composer-2.5` as of 2026-07 and refuses non-Composer model names. |
 
 When a requested effort value is outside the harness-specific accepted set, `fm-spawn` records the requested `effort=` in meta but emits no effort flag for that harness.
 This preserves launch success instead of passing a known-bad value.
@@ -182,6 +183,25 @@ The firstmate PRIMARY's own `.opencode/plugins/fm-primary-turnend-guard.js` list
 Throwing from `session.idle` does not block `opencode run`, so the primary adapter treats the event as passive and uses `client.session.promptAsync` to force one follow-up turn when `bin/fm-turnend-guard.sh` returns 2.
 The companion `.opencode/plugins/fm-primary-watch-arm.js` owns normal TUI watcher wake supervision and coordinates with the guard plugin before the guard tries a blind-turn follow-up.
 The follow-up was verified in the interactive TUI; `opencode run` can exit before displaying a queued follow-up, so the adapter is fail-open in headless mode.
+
+## cursor (PARTIAL: CLI FLAGS VERIFIED 2026-07-13, Cursor Agent 2026.07.01-41b2de7; LIVE TUI SKIPPED-NO-AUTH)
+
+Cursor Agent (`cursor-agent`) starts an interactive agent with a positional prompt.
+Launch with a positional prompt and Composer pin: `cursor-agent --model composer-2.5 --force "$(cat <brief>)"`.
+Fleet policy: cursor runs Composer models only, never GPT or Sonnet models; `fm-spawn` defaults cursor to `composer-2.5` and refuses non-Composer model names.
+
+| Fact | Value |
+|---|---|
+| Busy-pane signature | SKIPPED-NO-AUTH on this VM; do not rely on a cursor busy regex until live-verified. |
+| Exit command | SKIPPED-NO-AUTH. |
+| Interrupt | SKIPPED-NO-AUTH. |
+| Skill invocation | No separate verified skill invocation; use natural language until live-verified. |
+| Autonomy | `--force` (`-f`) from `cursor-agent --help`: force allow commands unless explicitly denied. |
+| Trust dialogs | SKIPPED-NO-AUTH for interactive TUI. `--trust` exists but help says it only works with `--print`/headless mode, so firstmate does not use it for the interactive harness. |
+| Steer behavior | SKIPPED-NO-AUTH. |
+
+Verified help facts: `--model <model>` is accepted, `--force`/`--yolo` are accepted, `--print` is headless/script mode, and prompt text is a positional argument.
+`-p` must not be used for firstmate's interactive cursor harness because it selects print/headless mode.
 
 ## pi (VERIFIED 2026-06-11)
 
