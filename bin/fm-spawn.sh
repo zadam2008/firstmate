@@ -340,7 +340,7 @@ launch_template() {
     # launch command - it is a Stop-event hook installed below (global hook +
     # per-task pointer), so the template is identical for ship/scout/secondmate.
     grok) printf '%s' 'grok --always-approve __MODELFLAG____EFFORTFLAG__"$(cat __BRIEF__)"' ;;
-    droid) printf '%s' 'droid __MODELFLAG____EFFORTFLAG__--auto high "$(cat __BRIEF__)"' ;;
+    droid) printf '%s' 'droid --settings __DROIDSETTINGS__ "$(cat __BRIEF__)"' ;;
     *) return 1 ;;
   esac
 }
@@ -432,7 +432,8 @@ model_flag_for_harness() {
       printf -- '--model %s ' "$(shell_quote "$model")"
       ;;
     droid)
-      printf -- '-m %s ' "$(shell_quote "$model")"
+      # Interactive droid ignores -m/--model; model selection is pinned through
+      # the per-task --settings file generated below.
       ;;
   esac
 }
@@ -470,11 +471,8 @@ effort_flag_for_harness() {
       esac
       ;;
     droid)
-      # Droid Core (GLM-5.2) advertises off|high|max reasoning. Firstmate does
-      # not expose off, so omit low/medium/xhigh instead of passing non-GLM values.
-      case "$effort" in
-        high|max) printf -- '--reasoning-effort %s ' "$(shell_quote "$effort")" ;;
-      esac
+      # Interactive droid's reasoning/autonomy defaults are pinned through the
+      # per-task --settings file generated below.
       ;;
     # opencode's interactive `opencode --prompt` launch has a verified --model
     # flag but no verified effort flag. Its `opencode run --variant` flag belongs
@@ -484,6 +482,20 @@ effort_flag_for_harness() {
 
 json_escape() {
   printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
+}
+
+write_droid_settings() {
+  local path=$1
+  {
+    printf '{\n'
+    printf '  "model": "glm-5.2",\n'
+    printf '  "reasoningEffort": "high",\n'
+    printf '  "sessionDefaultSettings": {\n'
+    printf '    "interactionMode": "auto",\n'
+    printf '    "autonomyLevel": "high"\n'
+    printf '  }\n'
+    printf '}\n'
+  } > "$path"
 }
 
 resolved_existing_dir() {
@@ -1041,6 +1053,12 @@ sq_turnend=$(shell_quote "$TURNEND")
 sq_piext=$(shell_quote "$STATE/$ID.pi-ext.ts")
 sq_piturnend=$(shell_quote "$PROJ_ABS/.pi/extensions/fm-primary-turnend-guard.ts")
 sq_piwatch=$(shell_quote "$PROJ_ABS/.pi/extensions/fm-primary-pi-watch.ts")
+DROID_SETTINGS=
+if [ "$HARNESS" = droid ]; then
+  DROID_SETTINGS="$STATE/$ID.droid-settings.json"
+  write_droid_settings "$DROID_SETTINGS"
+fi
+sq_droidsettings=$(shell_quote "$DROID_SETTINGS")
 MODELFLAG=$(model_flag_for_harness "$HARNESS" "$MODEL")
 EFFORTFLAG=$(effort_flag_for_harness "$HARNESS" "$EFFORT")
 LAUNCH=${LAUNCH//__MODELFLAG__/$MODELFLAG}
@@ -1050,6 +1068,7 @@ LAUNCH=${LAUNCH//__TURNEND__/$sq_turnend}
 LAUNCH=${LAUNCH//__PIEXT__/$sq_piext}
 LAUNCH=${LAUNCH//__PITURNEND__/$sq_piturnend}
 LAUNCH=${LAUNCH//__PIWATCH__/$sq_piwatch}
+LAUNCH=${LAUNCH//__DROIDSETTINGS__/$sq_droidsettings}
 if [ "$KIND" = secondmate ]; then
   sq_home=$(shell_quote "$PROJ_ABS")
   LAUNCH="FM_ROOT_OVERRIDE= FM_STATE_OVERRIDE= FM_DATA_OVERRIDE= FM_PROJECTS_OVERRIDE= FM_CONFIG_OVERRIDE= FM_HOME=$sq_home $LAUNCH"

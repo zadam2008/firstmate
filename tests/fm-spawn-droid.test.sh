@@ -67,8 +67,8 @@ SH
   printf '%s\n' "$fakebin"
 }
 
-test_spawn_droid_threads_model_effort_and_autonomy() {
-  local case_dir home proj wt fakebin launchlog argvlog pending id out status launch
+test_spawn_droid_writes_settings_and_launches_with_settings_file() {
+  local case_dir home proj wt fakebin launchlog argvlog pending id out status launch settings_path
   id=spawn-droid-z1
   case_dir="$TMP_ROOT/case"
   home="$case_dir/home"
@@ -103,20 +103,26 @@ test_spawn_droid_threads_model_effort_and_autonomy() {
   assert_grep "effort=high" "$home/state/$id.meta" "meta missing effort=high"
 
   launch=$(cat "$launchlog")
-  assert_contains "$launch" "droid -m 'glm-5.2' --reasoning-effort 'high' --auto high" \
-    "droid launch did not contain verified model, effort, and autonomy flags"
-  assert_not_contains "$launch" "--skip-permissions-unsafe" "droid launch should use --auto high"
+  assert_contains "$launch" "droid --settings" "droid launch did not use --settings"
+  assert_not_contains "$launch" "droid -m" "droid launch must not use ignored -m"
+  assert_not_contains "$launch" "--model" "droid launch must not use ignored --model"
+  assert_not_contains "$launch" "--reasoning-effort" "droid launch must not use interactive reasoning flag"
+  assert_not_contains "$launch" "--auto" "droid launch must not rely on ignored interactive --auto"
+  assert_not_contains "$launch" "--skip-permissions-unsafe" "droid launch must not use ignored skip-permissions flag"
 
-  assert_grep "argv1=-m" "$argvlog" "fake droid did not receive -m flag"
-  assert_grep "argv2=glm-5.2" "$argvlog" "fake droid did not receive glm-5.2 model"
-  assert_grep "argv3=--reasoning-effort" "$argvlog" "fake droid did not receive reasoning flag"
-  assert_grep "argv4=high" "$argvlog" "fake droid did not receive high effort"
-  assert_grep "argv5=--auto" "$argvlog" "fake droid did not receive autonomy flag"
-  assert_grep "argv6=high" "$argvlog" "fake droid did not receive high autonomy"
-  assert_grep "argv7=brief for droid" "$argvlog" "fake droid did not receive brief as one prompt argument"
-  pass "fm-spawn droid records profile metadata and launches with model, effort, and autonomy flags"
+  assert_grep "argv1=--settings" "$argvlog" "fake droid did not receive --settings"
+  settings_path=$(sed -n 's/^argv2=//p' "$argvlog")
+  [ -n "$settings_path" ] || fail "fake droid did not receive settings path"
+  [ -f "$settings_path" ] || fail "droid settings file was not written: $settings_path"
+  assert_grep '"model": "glm-5.2"' "$settings_path" "settings file did not pin glm-5.2"
+  assert_grep '"reasoningEffort": "high"' "$settings_path" "settings file did not pin high reasoning"
+  assert_grep '"sessionDefaultSettings": {' "$settings_path" "settings file missing session defaults"
+  assert_grep '"interactionMode": "auto"' "$settings_path" "settings file did not start in auto mode"
+  assert_grep '"autonomyLevel": "high"' "$settings_path" "settings file did not pin high autonomy"
+  assert_grep "argv3=brief for droid" "$argvlog" "fake droid did not receive brief as one prompt argument"
+  pass "fm-spawn droid records profile metadata and launches with verified --settings pin"
 }
 
-test_spawn_droid_threads_model_effort_and_autonomy
+test_spawn_droid_writes_settings_and_launches_with_settings_file
 
 echo "# all fm-spawn-droid tests passed"

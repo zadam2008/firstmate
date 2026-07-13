@@ -86,7 +86,7 @@ The supported launch-profile flags below were verified locally on 2026-06-30 wit
 | grok | `--model <model>` | `--reasoning-effort <low\|medium\|high\|xhigh>` | Verified on grok 0.2.73. `--effort` parses too, but firstmate's profile axis is reasoning effort. `--reasoning-effort max` is rejected, so `max` is omitted. |
 | pi | `--model <model>` | `--thinking <low\|medium\|high\|xhigh>` | Verified on pi 0.80.2. `max` prints an invalid-thinking warning, so firstmate omits Pi effort when the requested effort is `max`. |
 | opencode | `--model <provider/model>` | none for firstmate's interactive launch | Verified on opencode 1.17.6. `opencode run` has `--variant`, but firstmate launches the interactive `opencode --prompt` path, which has no verified effort flag. |
-| droid | `-m <model>` | `--reasoning-effort <high\|max>` | Verified on droid 0.164.0 parser/help and spot-checked after update to 0.170.0 on 2026-07-13. Fleet policy is `glm-5.2` only. Droid Core GLM-5.2 advertises reasoning `off\|high\|max`; firstmate omits low/medium/xhigh. |
+| droid | none for interactive launch | none for interactive launch | Verified live on 2026-07-13: interactive `droid` ignores `-m`/`--model` for the launch policy firstmate needs. Firstmate pins Droid through a per-task `--settings` JSON instead, always `glm-5.2`, high reasoning, Auto High. |
 
 When a requested effort value is outside the harness-specific accepted set, `fm-spawn` records the requested `effort=` in meta but emits no effort flag for that harness.
 This preserves launch success instead of passing a known-bad value.
@@ -211,25 +211,38 @@ The model arms through `fm_watch_arm_pi`, never a foreground bash arm; the watch
 `bin/fm-session-start.sh` reports when the live Pi session has not loaded both the turn-end guard and watcher extensions, and points at plain `pi` after project trust as the fix, with `-e` as a trust-free fallback.
 When a secondmate is launched on Pi, `fm-spawn.sh --secondmate` launches Pi with both `-e .pi/extensions/fm-primary-turnend-guard.ts` and `-e .pi/extensions/fm-primary-pi-watch.ts`, both already present in the secondmate home's git worktree.
 
-## droid (VERIFIED 2026-07-13, droid 0.164.0/0.170.0 CLI/parser; live turn blocked by login)
+## droid (VERIFIED 2026-07-13, droid 0.170.0 live interactive)
 
 Factory Droid TUI (`droid`).
-Launch with a positional prompt: `droid -m glm-5.2 --reasoning-effort high --auto high "$(cat <brief>)"`.
+Launch with a positional prompt and a per-task settings file: `droid --settings <state>/<task>.droid-settings.json "$(cat <brief>)"`.
 Fleet policy: use `glm-5.2` only.
+
+Verified settings JSON:
+
+```json
+{
+  "model": "glm-5.2",
+  "reasoningEffort": "high",
+  "sessionDefaultSettings": {
+    "interactionMode": "auto",
+    "autonomyLevel": "high"
+  }
+}
+```
 
 | Fact | Value |
 |---|---|
-| Busy-pane signature | Not verified live: this VM reached the login gate before a model turn could start. Do not add a busy regex until authenticated live verification captures the working footer. |
-| Exit command | Not verified past the login gate. From the login screen, `Ctrl+C` exits the pane cleanly. |
-| Interrupt | Not verified past the login gate. `Escape` did not leave the login screen; `Ctrl+C` exited. |
+| Busy-pane signature | Not yet recorded as a stable watcher regex. Live probes completed too quickly to need a busy-state addition. Do not add a busy regex until a long-running authenticated turn captures the working footer. |
+| Exit command | Not verified. |
+| Interrupt | Not verified. |
 | Skill invocation | No separate verified skill invocation; use natural language until authenticated verification proves a command form. |
-| Autonomy | `--auto high`; `--skip-permissions-unsafe` also parses interactively but is not documented in top-level interactive help. |
-| Model flag | `-m <model>` and `--model <model>` both parse interactively; firstmate emits `-m`. |
-| Effort flag | `--reasoning-effort <level>` parses interactively. GLM-5.2 help advertises `off\|high\|max`; firstmate emits only `high` or `max` from its shared effort vocabulary. |
+| Autonomy | Pin through `sessionDefaultSettings.autonomyLevel: "high"` in the runtime settings file. Live footer showed `Auto (High) · allow all commands`, and the probe wrote `CMD.txt` through shell command execution without a permission prompt. |
+| Model flag | Do not pass one. `droid -m glm-5.2 ...` parsed but still launched the default Opus model in live testing. `{"model":"glm-5.2"}` in `--settings` pinned `GLM-5.2 (Droid Core)`. |
+| Effort flag | Do not pass one. Use `reasoningEffort: "high"` in the runtime settings file. |
 
-Interactive prompt arguments do start the TUI: `droid "Reply with exactly READY and then wait for input"` opened the Factory CLI screen, but the environment showed "Please login with your Factory account to continue" before any prompt execution.
-`droid --help` documents `--auto low|medium|high` for interactive mode, not `--skip-permissions-unsafe`; nevertheless `droid --skip-permissions-unsafe "Say READY"` reached the TUI without option-parse failure.
-No trust dialog was observed beyond Factory login.
+Interactive prompt arguments do start the TUI and execute when authenticated.
+First launch in an untrusted folder may show "Trust this folder"; accept by sending `1` then Enter. The empirical probe did this after about 8 seconds for every candidate.
+Do not use `--auto high` as the autonomy proof: `droid --auto high` alone produced Opus plus an approval prompt, and `droid --settings '{"model":"glm-5.2"}' --auto high` still displayed Auto Low. The verified full-autonomy path is the settings JSON above.
 No turn-end hook or notify mechanism was found in `droid --help`; `droid exec` has automation flags, but firstmate's Droid adapter uses the interactive TUI path.
 
 ## grok (VERIFIED 2026-06-29, grok 0.2.73; slash-submit behavior re-verified 2026-07-03, grok 0.2.82)
