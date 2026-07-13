@@ -142,9 +142,12 @@ fm_backend_tmux_current_command() {  # <target>
 # idle shell passes THAT check as "alive" - the secondmate-liveness gap
 # AGENTS.md's session-start guarantee closes). See docs/tmux-backend.md
 # "Agent liveness probe" for the empirical basis. Prints one of:
-#   alive   - the foreground command is one of the verified harness binaries
+#   alive   - the foreground command is one of the recorded harness binaries
 #             (claude, codex, opencode, grok - each confirmed to run as its
-#             own process name, never wrapped by a generic interpreter).
+#             own process name, never wrapped by a generic interpreter;
+#             droid and cursor are verified crew harnesses with no recorded
+#             entry yet, so they never classify alive - docs/tmux-backend.md
+#             "Limitations").
 #   dead    - the foreground command is a bare shell: nothing is running in
 #             the pane, so a prior agent process has exited.
 #   unknown - anything else, INCLUDING a bare "node"/"python" interpreter

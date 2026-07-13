@@ -1,6 +1,6 @@
 ---
 name: harness-adapters
-description: Agent-only reference for firstmate harness operations. Use before spawning or recovering a crewmate or secondmate, handling a trust dialog, sending a harness-specific skill invocation, interrupting or exiting an agent, resuming an exited agent, or verifying a new harness adapter. Contains verified facts for claude, codex, opencode, pi, grok, and droid.
+description: Agent-only reference for firstmate harness operations. Use before spawning or recovering a crewmate or secondmate, handling a trust dialog, sending a harness-specific skill invocation, interrupting or exiting an agent, resuming an exited agent, or verifying a new harness adapter. Contains verified facts for claude, codex, opencode, pi, grok, droid, and cursor.
 user-invocable: false
 metadata:
   internal: true
@@ -184,7 +184,7 @@ Throwing from `session.idle` does not block `opencode run`, so the primary adapt
 The companion `.opencode/plugins/fm-primary-watch-arm.js` owns normal TUI watcher wake supervision and coordinates with the guard plugin before the guard tries a blind-turn follow-up.
 The follow-up was verified in the interactive TUI; `opencode run` can exit before displaying a queued follow-up, so the adapter is fail-open in headless mode.
 
-## cursor (PARTIAL: CLI FLAGS VERIFIED 2026-07-13, Cursor Agent 2026.07.01-41b2de7; LIVE TUI SKIPPED-NO-AUTH)
+## cursor (VERIFIED 2026-07-13, Cursor Agent 2026.07.09-a3815c0 live interactive, Composer 2.5)
 
 Cursor Agent (`cursor-agent`) starts an interactive agent with a positional prompt.
 Launch with a positional prompt and Composer pin: `cursor-agent --model composer-2.5 --force "$(cat <brief>)"`.
@@ -192,16 +192,20 @@ Fleet policy: cursor runs Composer models only, never GPT or Sonnet models; `fm-
 
 | Fact | Value |
 |---|---|
-| Busy-pane signature | SKIPPED-NO-AUTH on this VM; do not rely on a cursor busy regex until live-verified. |
-| Exit command | SKIPPED-NO-AUTH. |
-| Interrupt | SKIPPED-NO-AUTH. |
-| Skill invocation | No separate verified skill invocation; use natural language until live-verified. |
-| Autonomy | `--force` (`-f`) from `cursor-agent --help`: force allow commands unless explicitly denied. |
-| Trust dialogs | SKIPPED-NO-AUTH for interactive TUI. `--trust` exists but help says it only works with `--print`/headless mode, so firstmate does not use it for the interactive harness. |
-| Steer behavior | SKIPPED-NO-AUTH. |
+| Busy-pane signature | `ctrl+c to stop` (ASCII hint on the follow-up bar, shown iff a turn or tool call is running; the spinner line is braille glyphs + `Running` + a live token count, e.g. `⠘⠆ Running  351 tokens`). The idle pane drops the hint, verified with before/after captures. |
+| Exit command | Ctrl+D on an empty composer (verified live: the TUI exits to the shell and prints `To resume this session: agent --resume=<session-id>`). No `/exit` or `/quit` exists; the slash-command popup was enumerated live and has no session-exit entry. |
+| Interrupt | single Ctrl+C mid-run (verified live during a `sleep 120` tool call: the command line shows `Cancelled` and the session stays alive and steerable). |
+| Skill invocation | No separate verified skill invocation; use natural language. |
+| Autonomy | `--force` (verified live: footer shows `Run Everything` and shell commands executed without approval prompts). |
+| Trust dialogs | "Workspace Trust Required" dialog on first launch in an untrusted worktree; accept by sending the `a` hotkey for "[a] Trust this workspace" (verified via `fm-send --key a`). Trust persists for the worktree across `--resume`. `--trust` only works with `--print`/headless mode, so firstmate does not use it for the interactive harness. |
+| Steer behavior | `fm-send` text steers land and submit (verified twice live). The idle composer shows the placeholder `→ Add a follow-up`. |
+| Resume | `cursor-agent --resume=<session-id>` (verified live: session context and workspace trust both persist). |
 
 Verified help facts: `--model <model>` is accepted, `--force`/`--yolo` are accepted, `--print` is headless/script mode, and prompt text is a positional argument.
 `-p` must not be used for firstmate's interactive cursor harness because it selects print/headless mode.
+A running shell command shows a live elapsed timer plus a `ctrl+b twice to send to background` hint; the mid-run elapsed display is not a completion time.
+Secondmate use is not yet validated: `bin/backends/tmux.sh`'s agent-process liveness classification has no recorded cursor entry, so the liveness sweep treats a dead reading as unknown rather than respawning.
+Composer-classifier depth (the `→` prompt glyph and the `Add a follow-up` placeholder in `bin/fm-composer-lib.sh`) is not yet encoded; `fm-send` steers verified clean empirically, and classifier hardening for droid/cursor is tracked as queued backlog work.
 
 ## pi (VERIFIED 2026-06-11)
 
@@ -252,16 +256,19 @@ Verified settings JSON:
 
 | Fact | Value |
 |---|---|
-| Busy-pane signature | Not yet recorded as a stable watcher regex. Live probes completed too quickly to need a busy-state addition. Do not add a busy regex until a long-running authenticated turn captures the working footer. |
-| Exit command | Not verified. |
-| Interrupt | Not verified. |
-| Skill invocation | No separate verified skill invocation; use natural language until authenticated verification proves a command form. |
+| Busy-pane signature | `Press ESC to stop` (ASCII suffix of the spinner line in BOTH busy modes, captured live on long turns: `⡄ Executing...  (Press ESC to stop)` during tool runs and `⣄ Streaming...  (Press ESC to stop)` during generation). The idle pane drops the line. |
+| Exit command | `/quit` ("Exit from the Droid CLI" in the slash popup; verified live: a ~1s settle between the typed text and Enter submitted it on the first Enter and the TUI exited to the shell). |
+| Interrupt | single Escape (verified live during a `sleep 120` tool call: the command shows `⎿ Interrupted` and the session stays alive and steerable). |
+| Skill invocation | No separate verified skill invocation; use natural language. |
+| Resume | `droid --resume [sessionId]` (defaults to last modified) or `droid --fork <sessionId>` to branch, from `droid --help` 0.170.0; not yet live-verified. |
+| Steer behavior | `fm-send` text steers land and submit (verified three times live). While busy the composer shows the placeholder `Enter to steer · Ctrl+Enter to queue`; the idle composer is a bare bordered `>`. |
 | Autonomy | Pin through `sessionDefaultSettings.autonomyLevel: "high"` in the runtime settings file. Live footer showed `Auto (High) · allow all commands`, and the probe wrote `CMD.txt` through shell command execution without a permission prompt. |
 | Model flag | Do not pass one. `droid -m glm-5.2 ...` parsed but still launched the default Opus model in live testing. `{"model":"glm-5.2"}` in `--settings` pinned `GLM-5.2 (Droid Core)`. |
 | Effort flag | Do not pass one. Use `reasoningEffort: "high"` in the runtime settings file. |
 
 Interactive prompt arguments do start the TUI and execute when authenticated.
-First launch in an untrusted folder may show "Trust this folder"; accept by sending `1` then Enter. The empirical probe did this after about 8 seconds for every candidate.
+First launch in an untrusted folder may show "Trust this folder"; option 1 ("Trust this folder") is preselected, so a plain Enter confirms it (verified live via `fm-send --key Enter`), and sending `1` then Enter also works. The dialog appeared about 8 seconds after launch in every probe.
+Secondmate use is not yet validated: `bin/backends/tmux.sh`'s agent-process liveness classification has no recorded droid entry, so the liveness sweep treats a dead reading as unknown rather than respawning.
 Do not use `--auto high` as the autonomy proof: `droid --auto high` alone produced Opus plus an approval prompt, and `droid --settings '{"model":"glm-5.2"}' --auto high` still displayed Auto Low. The verified full-autonomy path is the settings JSON above.
 No turn-end hook or notify mechanism was found in `droid --help`; `droid exec` has automation flags, but firstmate's Droid adapter uses the interactive TUI path.
 

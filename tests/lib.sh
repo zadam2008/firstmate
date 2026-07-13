@@ -91,6 +91,37 @@ SH
   done
 }
 
+# --- node ESM/TS capability probe --------------------------------------------
+#
+# fm_node_supports_esm_ts_import: succeeds iff `node` can run the extension
+# runtime tests that import the tracked ESM plugins and TypeScript extensions:
+# ESM syntax detection for stdin scripts (default since Node 22.7) and
+# on-import type stripping for .ts modules (default since Node 22.18). An older
+# node fails those imports with syntax or ERR_UNKNOWN_FILE_EXTENSION errors
+# that say nothing about the extensions themselves, so callers skip the runtime
+# tests there. Probes once per test file and caches the verdict.
+
+FM_NODE_ESM_TS_PROBED=
+fm_node_supports_esm_ts_import() {
+  local dir
+  if [ -z "$FM_NODE_ESM_TS_PROBED" ]; then
+    FM_NODE_ESM_TS_PROBED=no
+    if command -v node >/dev/null 2>&1 \
+      && dir=$(mktemp -d "${TMPDIR:-/tmp}/fm-node-esm-probe.XXXXXX"); then
+      printf 'export const ok: string = "ok";\n' > "$dir/probe.ts"
+      if FM_TS_PROBE="$dir/probe.ts" node >/dev/null 2>&1 <<'EOF'
+import { pathToFileURL } from "node:url";
+await import(pathToFileURL(process.env.FM_TS_PROBE).href);
+EOF
+      then
+        FM_NODE_ESM_TS_PROBED=yes
+      fi
+      rm -rf "$dir"
+    fi
+  fi
+  [ "$FM_NODE_ESM_TS_PROBED" = yes ]
+}
+
 # --- deterministic git identity and fixtures --------------------------------
 
 # fm_git_identity [name] [email]: export a fixed author/committer identity so

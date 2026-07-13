@@ -84,7 +84,7 @@ run_spawn() {
 }
 
 read_case_record() {
-  IFS='|' read -r CASE_DIR HOME_DIR PROJ_DIR WT_DIR FAKEBIN_DIR LAUNCH_LOG ARGV_LOG ID <<EOF
+  IFS='|' read -r _ HOME_DIR PROJ_DIR WT_DIR FAKEBIN_DIR LAUNCH_LOG ARGV_LOG ID <<EOF
 $1
 EOF
 }
@@ -139,5 +139,19 @@ test_cursor_refuses_non_composer_model() {
   pass "cursor refuses non-Composer model names"
 }
 
+# Busy-signature regression: the shared default busy regex must cover cursor's
+# live-verified follow-up-bar hint (Cursor Agent 2026.07.09) and not its idle bar.
+test_busy_regex_covers_cursor_footer() {
+  # shellcheck source=bin/fm-tmux-lib.sh
+  . "$ROOT/bin/fm-tmux-lib.sh"
+  printf '%s' '  → Add a follow-up      ctrl+c to stop' | grep -qiE "$FM_TMUX_BUSY_REGEX_DEFAULT" \
+    || fail "busy regex must match cursor running follow-up bar"
+  if printf '%s' '  → Add a follow-up' | grep -qiE "$FM_TMUX_BUSY_REGEX_DEFAULT"; then
+    fail "busy regex must not match cursor idle follow-up bar"
+  fi
+  pass "default busy regex covers cursor busy hint and not its idle bar"
+}
+
 test_cursor_defaults_to_composer_pin_and_omits_effort_flag
 test_cursor_refuses_non_composer_model
+test_busy_regex_covers_cursor_footer
