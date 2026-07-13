@@ -33,7 +33,7 @@
 #   profile consultation. A --secondmate spawn is exempt and resolves the SECONDMATE
 #   harness (config/secondmate-harness -> config/crew-harness -> own), so the
 #   secondmate-vs-crewmate split is DURABLE across every respawn (recovery,
-#   /updatefirstmate, restart). A bare adapter name (claude|codex|opencode|pi|grok)
+#   /updatefirstmate, restart). A bare adapter name (claude|codex|opencode|pi|grok|droid)
 #   overrides it for this spawn (either kind). A non-flag string containing
 #   whitespace is treated as a RAW launch command - the escape hatch for verifying
 #   new adapters.
@@ -279,7 +279,7 @@ FIRSTMATE_HOME=
 
 if [ "$KIND" = secondmate ]; then
   case "${POS[1]:-}" in
-    ''|claude|codex|opencode|pi|grok)
+    ''|claude|codex|opencode|pi|grok|droid)
       ARG3=${POS[1]:-}
       ;;
     *' '*)
@@ -340,6 +340,7 @@ launch_template() {
     # launch command - it is a Stop-event hook installed below (global hook +
     # per-task pointer), so the template is identical for ship/scout/secondmate.
     grok) printf '%s' 'grok --always-approve __MODELFLAG____EFFORTFLAG__"$(cat __BRIEF__)"' ;;
+    droid) printf '%s' 'droid __MODELFLAG____EFFORTFLAG__--auto high "$(cat __BRIEF__)"' ;;
     *) return 1 ;;
   esac
 }
@@ -430,6 +431,9 @@ model_flag_for_harness() {
     claude|codex|opencode|pi|grok)
       printf -- '--model %s ' "$(shell_quote "$model")"
       ;;
+    droid)
+      printf -- '-m %s ' "$(shell_quote "$model")"
+      ;;
   esac
 }
 
@@ -463,6 +467,13 @@ effort_flag_for_harness() {
       # omit max rather than passing a flag the installed CLI will reject as invalid.
       case "$effort" in
         low|medium|high|xhigh) printf -- '--thinking %s ' "$(shell_quote "$effort")" ;;
+      esac
+      ;;
+    droid)
+      # Droid Core (GLM-5.2) advertises off|high|max reasoning. Firstmate does
+      # not expose off, so omit low/medium/xhigh instead of passing non-GLM values.
+      case "$effort" in
+        high|max) printf -- '--reasoning-effort %s ' "$(shell_quote "$effort")" ;;
       esac
       ;;
     # opencode's interactive `opencode --prompt` launch has a verified --model

@@ -1,6 +1,6 @@
 ---
 name: harness-adapters
-description: Agent-only reference for firstmate harness operations. Use before spawning or recovering a crewmate or secondmate, handling a trust dialog, sending a harness-specific skill invocation, interrupting or exiting an agent, resuming an exited agent, or verifying a new harness adapter. Contains verified facts for claude, codex, opencode, pi, and grok.
+description: Agent-only reference for firstmate harness operations. Use before spawning or recovering a crewmate or secondmate, handling a trust dialog, sending a harness-specific skill invocation, interrupting or exiting an agent, resuming an exited agent, or verifying a new harness adapter. Contains verified facts for claude, codex, opencode, pi, grok, and droid.
 user-invocable: false
 metadata:
   internal: true
@@ -86,6 +86,7 @@ The supported launch-profile flags below were verified locally on 2026-06-30 wit
 | grok | `--model <model>` | `--reasoning-effort <low\|medium\|high\|xhigh>` | Verified on grok 0.2.73. `--effort` parses too, but firstmate's profile axis is reasoning effort. `--reasoning-effort max` is rejected, so `max` is omitted. |
 | pi | `--model <model>` | `--thinking <low\|medium\|high\|xhigh>` | Verified on pi 0.80.2. `max` prints an invalid-thinking warning, so firstmate omits Pi effort when the requested effort is `max`. |
 | opencode | `--model <provider/model>` | none for firstmate's interactive launch | Verified on opencode 1.17.6. `opencode run` has `--variant`, but firstmate launches the interactive `opencode --prompt` path, which has no verified effort flag. |
+| droid | `-m <model>` | `--reasoning-effort <high\|max>` | Verified on droid 0.164.0 parser/help and spot-checked after update to 0.170.0 on 2026-07-13. Fleet policy is `glm-5.2` only. Droid Core GLM-5.2 advertises reasoning `off\|high\|max`; firstmate omits low/medium/xhigh. |
 
 When a requested effort value is outside the harness-specific accepted set, `fm-spawn` records the requested `effort=` in meta but emits no effort flag for that harness.
 This preserves launch success instead of passing a known-bad value.
@@ -100,6 +101,7 @@ Natural language is acceptable if uncertain.
 - opencode: no separate verified skill invocation beyond normal slash-command behavior; use natural language if the exact skill command is uncertain.
 - pi: no separate verified skill invocation beyond normal command behavior; use natural language if the exact skill command is uncertain.
 - grok: `/<skill>`, for example `/no-mistakes` (same form as claude). Verified end to end: grok discovers the user-level `no-mistakes` skill, `/no-mistakes` invokes it, and grok drives a real `no-mistakes axi run`. Like codex's `$`/`/` popups, typing `/<skill>` opens grok's slash-autocomplete, so a too-fast Enter selects the popup entry instead of sending, and for an argument-taking command (like `/no-mistakes`'s optional task-first argument) that first Enter only expands the popup selection into an argument-hint placeholder rather than submitting - a genuine second Enter is required (see the grok section below for the 2026-07-03 incident and fix). `fm_tmux_submit_core`'s retried Enter (used by `fm-send` on the tmux backend) already handles this correctly by reading the cursor row; the herdr backend needed a dedicated fix (`fm_backend_herdr_composer_state`, docs/herdr-backend.md) because its prior delta-based verification false-positived on that same popup-close content change.
+- droid: no separate verified skill invocation beyond normal command behavior; use natural language if the exact skill command is uncertain.
 
 ## claude (VERIFIED)
 
@@ -208,6 +210,27 @@ Pi's primary watcher protocol also requires the tracked `.pi/extensions/fm-prima
 The model arms through `fm_watch_arm_pi`, never a foreground bash arm; the watcher tool result and clean-exit fallback are owned by `docs/supervision-protocols/pi.md`.
 `bin/fm-session-start.sh` reports when the live Pi session has not loaded both the turn-end guard and watcher extensions, and points at plain `pi` after project trust as the fix, with `-e` as a trust-free fallback.
 When a secondmate is launched on Pi, `fm-spawn.sh --secondmate` launches Pi with both `-e .pi/extensions/fm-primary-turnend-guard.ts` and `-e .pi/extensions/fm-primary-pi-watch.ts`, both already present in the secondmate home's git worktree.
+
+## droid (VERIFIED 2026-07-13, droid 0.164.0/0.170.0 CLI/parser; live turn blocked by login)
+
+Factory Droid TUI (`droid`).
+Launch with a positional prompt: `droid -m glm-5.2 --reasoning-effort high --auto high "$(cat <brief>)"`.
+Fleet policy: use `glm-5.2` only.
+
+| Fact | Value |
+|---|---|
+| Busy-pane signature | Not verified live: this VM reached the login gate before a model turn could start. Do not add a busy regex until authenticated live verification captures the working footer. |
+| Exit command | Not verified past the login gate. From the login screen, `Ctrl+C` exits the pane cleanly. |
+| Interrupt | Not verified past the login gate. `Escape` did not leave the login screen; `Ctrl+C` exited. |
+| Skill invocation | No separate verified skill invocation; use natural language until authenticated verification proves a command form. |
+| Autonomy | `--auto high`; `--skip-permissions-unsafe` also parses interactively but is not documented in top-level interactive help. |
+| Model flag | `-m <model>` and `--model <model>` both parse interactively; firstmate emits `-m`. |
+| Effort flag | `--reasoning-effort <level>` parses interactively. GLM-5.2 help advertises `off\|high\|max`; firstmate emits only `high` or `max` from its shared effort vocabulary. |
+
+Interactive prompt arguments do start the TUI: `droid "Reply with exactly READY and then wait for input"` opened the Factory CLI screen, but the environment showed "Please login with your Factory account to continue" before any prompt execution.
+`droid --help` documents `--auto low|medium|high` for interactive mode, not `--skip-permissions-unsafe`; nevertheless `droid --skip-permissions-unsafe "Say READY"` reached the TUI without option-parse failure.
+No trust dialog was observed beyond Factory login.
+No turn-end hook or notify mechanism was found in `droid --help`; `droid exec` has automation flags, but firstmate's Droid adapter uses the interactive TUI path.
 
 ## grok (VERIFIED 2026-06-29, grok 0.2.73; slash-submit behavior re-verified 2026-07-03, grok 0.2.82)
 
