@@ -123,6 +123,22 @@ test_spawn_droid_writes_settings_and_launches_with_settings_file() {
   pass "fm-spawn droid records profile metadata and launches with verified --settings pin"
 }
 
+# Busy-signature regression: the shared default busy regex must cover droid's
+# live-verified spinner hints (droid 0.170.0) and not its idle footer.
+test_busy_regex_covers_droid_footers() {
+  # shellcheck source=bin/fm-tmux-lib.sh
+  . "$ROOT/bin/fm-tmux-lib.sh"
+  printf '%s' ' ⡄ Executing...  (Press ESC to stop)' | grep -qiE "$FM_TMUX_BUSY_REGEX_DEFAULT" \
+    || fail "busy regex must match droid Executing footer"
+  printf '%s' ' ⣄ Streaming...  (Press ESC to stop)' | grep -qiE "$FM_TMUX_BUSY_REGEX_DEFAULT" \
+    || fail "busy regex must match droid Streaming footer"
+  if printf '%s' ' Auto (High) · allow all commands' | grep -qiE "$FM_TMUX_BUSY_REGEX_DEFAULT"; then
+    fail "busy regex must not match droid idle footer"
+  fi
+  pass "default busy regex covers droid busy footers and not its idle footer"
+}
+
 test_spawn_droid_writes_settings_and_launches_with_settings_file
+test_busy_regex_covers_droid_footers
 
 echo "# all fm-spawn-droid tests passed"

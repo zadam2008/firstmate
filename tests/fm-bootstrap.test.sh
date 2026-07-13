@@ -488,6 +488,10 @@ empty array use is flagged^{"rules":[{"when":"big feature","use":[]}]}^exact^CRE
 array profile without harness is flagged^{"rules":[{"when":"big feature","use":[{"model":"gpt-5.5"}]}]}^exact^CREW_DISPATCH: invalid config/crew-dispatch.json - each use profile needs harness
 unknown select is flagged^{"rules":[{"when":"big feature","use":[{"harness":"claude"},{"harness":"codex"}],"select":"mystery"}]}^exact^CREW_DISPATCH: invalid config/crew-dispatch.json - unknown select: mystery
 array profile unsupported effort is flagged^{"rules":[{"when":"big feature","use":[{"harness":"codex","effort":"max"}]}]}^exact^CREW_DISPATCH: invalid config/crew-dispatch.json - invalid effort: codex:max
+droid dispatch profile is accepted^{"rules":[{"when":"routine implementation","use":{"harness":"droid","model":"glm-5.2"}}],"default":{"harness":"droid","model":"glm-5.2"}}^grep^CREW_DISPATCH: active config/crew-dispatch.json
+cursor dispatch profile is accepted^{"rules":[{"when":"quick strikes","use":{"harness":"cursor","model":"composer-2.5"}}]}^grep^CREW_DISPATCH: active config/crew-dispatch.json
+unsupported droid effort is flagged^{"rules":[{"when":"routine work","use":{"harness":"droid","effort":"high"}}]}^exact^CREW_DISPATCH: invalid config/crew-dispatch.json - invalid effort: droid:high
+unsupported cursor effort is flagged^{"rules":[{"when":"quick edits","use":{"harness":"cursor","effort":"high"}}]}^exact^CREW_DISPATCH: invalid config/crew-dispatch.json - invalid effort: cursor:high
 ROWS
   pass "bootstrap validates crew-dispatch.json and reports malformed or unverified configs"
 }
